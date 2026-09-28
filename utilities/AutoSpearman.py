@@ -44,8 +44,8 @@ def AutoSpearman(X_train, correlation_threshold=0.7, correlation_method='spearma
             top_corr_i = find_top_corr.loc[top_corr_index, :]
 
             # get the 2 correlated metrics with the strongest correlation
-            correlated_metric_1 = top_corr_i[0]
-            correlated_metric_2 = top_corr_i[1]
+            correlated_metric_1 = top_corr_i.iloc[0]
+            correlated_metric_2 = top_corr_i.iloc[1]
             # print('> Step', count, 'comparing between',
             #       correlated_metric_1, 'and', correlated_metric_2)
 
