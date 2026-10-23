@@ -71,7 +71,7 @@ def run_(X, LOC, n_class, v_lambda, save_path, project_name, model_name,
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reps", type=int, default=100)
+    parser.add_argument("--reps", type=int, default=10)
     parser.add_argument("--permutation-repeats", type=int, default=5)
     parser.add_argument("--seed", type=int, default=100)
     parser.add_argument("--datasets", nargs="*", help="Dataset stems, e.g. activemq-5.0.0")
