@@ -243,6 +243,67 @@ there to configure a run. Results append to existing CSV files; use a fresh
 `save_path` for a separate experiment. Unusable rounds emit a warning.
 Dependencies: numpy, pandas, scipy, scikit-learn.
 
+## Run all methods and summarize four measures
+
+Run from the `code` directory:
+
+```powershell
+python .\test\demo_all_methods.py
+```
+
+Edit `save_path`, `Reps`, `datasets`, and `methods` in the script's `__main__`
+block, like the individual demos. Defaults run all 28 dataset versions for
+100 bootstrap rounds. Methods are ManualUp, ManualDown, SC, CLA, CLAMI, TCL,
+TCLP, KMedoids, MUSDP_label1, and MUSDP_label2. Feature-importance experiments
+are not prediction methods and are not included. The full experiment can be
+expensive, particularly TCLP's cross-validation and the spectral methods.
+
+`run_all_methods(...)` also supports `base_seed`, `percentile`, `n_estimators`,
+`cv_folds`, `tune_mtry`, `standardize`, `max_iter`, and `v_lambda` overrides.
+For a small initial run, call from the `code` directory:
+
+```python
+from test.demo_all_methods import run_all_methods
+
+tables = run_all_methods(
+    save_path='result/all_methods_small',
+    datasets=['activemq-5.0.0'], Reps=2,
+    n_estimators=20, cv_folds=2,
+)
+```
+
+Outputs are exactly four summary CSV files: `G_mean.csv`, `AUC.csv`,
+`Popt.csv`, and `Recall20.csv`. Each contains a `Dataset` column followed by
+one column per method. Each cell is the arithmetic mean of successful rounds
+for that dataset and method; no successful rounds yields an empty (NaN) cell.
+The function returns these four tables as a dictionary of DataFrames.
+Summaries are checkpointed after each completed round.
+
+Every method uses the same out-of-bootstrap evaluation sample in each round;
+seeds are `base_seed + round` (zero-based). True labels are used only for
+evaluation. Methods that cannot fit or have unusable evaluation samples emit
+a warning and record the reason in `failures.jsonl`. Their failed rounds
+are excluded rather than filled with zero. `successful_rounds.json` records
+counts per dataset and method, `rounds.jsonl` stores the four individual
+measure values per successful round, and `settings.json` records the run
+configuration. Check counts before comparisons because methods can have
+different successful round counts. A fresh output directory is required.
+
+Metrics follow the existing utilities: AUC uses binary predictions;
+Recall20 includes the module that reaches or first exceeds 20% of total LOC;
+Popt uses binary actual defect labels. KMedoids retains its ascending-LOC
+ordering within both predicted groups. Other methods keep their existing
+ranking conventions, and manual methods use their LOC-based scores.
+
+MUSDP uses the existing 54/5/6 metric views and AutoSpearman selection on
+each full dataset before sampling. Clustering is fitted once per round for
+both labeling variants. This runner reuses the independent labeling helper
+from the importance-comparison workflow: majority vote over independently
+labeled views for label1, smaller cluster for label2. It avoids the shared
+label-array mutation in the original `demo_MUSDP.py`, so its MUSDP values
+may differ from that original demo. Dependencies include statsmodels in
+addition to numpy, pandas, scipy, and scikit-learn.
+
 # NOTE 
 The software is free for academic use only, and shall not be used, rewritten, or adapted as the basis of a commercial product without first obtaining permission from the authors. 
 The authors make no representations about the suitability of this software for any purpose. It is provided "as is" without express or implied warranty.
