@@ -1,6 +1,14 @@
 import csv
 import os
+import sys
 import warnings
+from pathlib import Path
+
+# Direct script execution adds test/, rather than code/, to the import path.
+CODE_DIR = Path(__file__).resolve().parents[1]
+if str(CODE_DIR) not in sys.path:
+    sys.path.insert(0, str(CODE_DIR))
+
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
@@ -57,14 +65,14 @@ def run_(X, LOC, n_class, v_lambda, save_path, project_name, model_name, randsee
 if __name__ == '__main__':
     warnings.filterwarnings('ignore')
 
-    save_path = '../result/'
+    save_path = str(CODE_DIR / 'result') + os.sep
     model_name = 'MUSDP'
     Reps = 100
     n_class = 2
     v_lambda = 1
 
-    project_names = sorted(os.listdir('../data/'))
-    path = os.path.abspath('../data/')
+    path = CODE_DIR / 'data'
+    project_names = sorted(p.name for p in path.glob('*.csv'))
     pro_num = len(project_names)
 
     for i in range(pro_num):
