@@ -139,12 +139,14 @@ class MultiviewCoRegSpectralClustering(MultiviewSpectralClustering):
         '''
 
         # Compute the normalized laplacian
-        d_mat = np.diag(np.sum(X, axis=1))
-        if np.linalg.det(d_mat) == 0:
-            d_alt = np.sqrt(np.linalg.pinv(d_mat))
-        else:  # numpy.linalg.LinAlgError: Singular matrix
-            d_alt = np.sqrt(np.linalg.inv(d_mat))
-        laplacian = d_alt @ X @ d_alt
+        # D is diagonal: computing its determinant multiplies all degrees
+        # and can overflow even when each degree and the normalization are
+        # finite. Compute D^(-1/2) directly; isolated nodes get weight zero.
+        degrees = np.sum(X, axis=1)
+        inv_sqrt_degrees = np.zeros_like(degrees, dtype=float)
+        np.divide(1.0, np.sqrt(degrees), out=inv_sqrt_degrees,
+                  where=degrees > 0)
+        laplacian = inv_sqrt_degrees[:, None] * X * inv_sqrt_degrees[None, :]
 
         # Make the resulting matrix symmetric
         laplacian = (laplacian + np.transpose(laplacian)) / 2.0

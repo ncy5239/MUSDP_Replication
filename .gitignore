@@ -2,6 +2,6 @@
 .DS_Store
 Thumbs.db
 .vscode/
-**/result/
+result/
 **/smoke_result/
-.pyc
+*.pyc
