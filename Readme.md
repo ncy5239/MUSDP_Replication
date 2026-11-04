@@ -274,10 +274,23 @@ tables = run_all_methods(
 
 Outputs are exactly four summary CSV files: `G_mean.csv`, `AUC.csv`,
 `Popt.csv`, and `Recall20.csv`. Each contains a `Dataset` column followed by
-one column per method. Each cell is the arithmetic mean of successful rounds
+one column per method. Each cell is the median of successful rounds
 for that dataset and method; no successful rounds yields an empty (NaN) cell.
 The function returns these four tables as a dictionary of DataFrames.
 Summaries are checkpointed after each completed round.
+
+To rebuild the four performance summaries from existing round logs using the
+paper's median convention, without rerunning any models:
+
+```powershell
+python .\utilities\summarize_saved_rounds.py .\result\all_methods
+```
+
+An already-running Python process keeps its loaded aggregation code. Regenerate
+its summaries after it finishes, or as needed while results arrive. New runs
+use median aggregation. Feature-importance reports also use medians across
+rounds; frequency columns remain proportions. Mean replacement, mean ranks
+for ties, and averaging repeated shuffles are separate methodological choices.
 
 Every method uses the same out-of-bootstrap evaluation sample in each round;
 seeds are `base_seed + round` (zero-based). True labels are used only for

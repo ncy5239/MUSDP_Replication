@@ -48,10 +48,11 @@ def _evaluate(truth, prediction, effort, method):
 def run_all_methods(data_dir=None, save_path=None, Reps=100, datasets=None,
                     methods=None, base_seed=0, percentile=50,
                     n_estimators=500, cv_folds=10, tune_mtry=True,
-                    standardize=True, max_iter=100, v_lambda=1):
+                    standardize=True, max_iter=100, v_lambda=1,
+                    checkpoint_callback=None):
     """Return four DataFrames and write G_mean/AUC/Popt/Recall20.csv.
 
-    Rows are dataset stems, columns are methods, and cells are arithmetic means
+    Rows are dataset stems, columns are methods, and cells are medians
     across successful rounds (no rounding before export). All methods share
     the same out-of-bootstrap sample for each dataset/round. Actual labels
     are used only for evaluation. Failed method-rounds are excluded, never
@@ -85,7 +86,7 @@ def run_all_methods(data_dir=None, save_path=None, Reps=100, datasets=None,
                     methods=methods, Reps=Reps, base_seed=base_seed,
                     percentile=percentile, n_estimators=n_estimators,
                     cv_folds=cv_folds, tune_mtry=tune_mtry, standardize=standardize,
-                    max_iter=max_iter, v_lambda=v_lambda, aggregation='arithmetic mean',
+                    max_iter=max_iter, v_lambda=v_lambda, aggregation='median',
                     bootstrap_seed='base_seed + zero-based round',
                     AUC='binary predicted labels, matching existing demos',
                     Recall20='includes first module reaching or exceeding 20% LOC',
@@ -178,18 +179,22 @@ def run_all_methods(data_dir=None, save_path=None, Reps=100, datasets=None,
                     rounds.flush()
                 # Checkpoint summaries so a long run retains completed rounds.
                 if records:
-                    means = pd.DataFrame(records).groupby('method')[list(MEASURES)].mean()
+                    medians = pd.DataFrame(records).groupby('method')[list(MEASURES)].median()
                     for measure, table in tables.items():
-                        for method in means.index:
-                            table.loc[path.stem, method] = means.loc[method, measure]
+                        for method in medians.index:
+                            table.loc[path.stem, method] = medians.loc[method, measure]
                 for measure, table in tables.items():
                     table.to_csv(save_path / (measure + '.csv'), index_label='Dataset')
                 (save_path / 'successful_rounds.json').write_text(
                     json.dumps(counts, indent=2), encoding='utf-8')
+                if checkpoint_callback is not None:
+                    checkpoint_callback(save_path)
     # Also create valid empty summaries when all bootstrap samples were unusable.
     for measure, table in tables.items():
         table.to_csv(save_path / (measure + '.csv'), index_label='Dataset')
     (save_path / 'successful_rounds.json').write_text(json.dumps(counts, indent=2), encoding='utf-8')
+    if checkpoint_callback is not None:
+        checkpoint_callback(save_path)
     print(f'Results: {save_path.resolve()}')
     return tables
 

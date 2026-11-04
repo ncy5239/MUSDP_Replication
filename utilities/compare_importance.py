@@ -43,23 +43,23 @@ def compare_results(importance_file, report_dir):
                               spearman=spearmanr(a, b).statistic if varying else np.nan,
                               kendall=kendalltau(a, b).statistic if varying else np.nan,
                               top5_jaccard=len(top_a & top_b) / len(top_a | top_b),
-                              mean_absolute_rank_change=frame.absolute_rank_change.mean()))
+                              median_absolute_rank_change=frame.absolute_rank_change.median()))
     stability = pd.DataFrame(stability)
     stability.to_csv(report_dir / "round_stability.csv", index=False)
-    stability.groupby(["dataset", "labeling"]).mean(numeric_only=True).to_csv(
+    stability.groupby(["dataset", "labeling"]).median(numeric_only=True).to_csv(
         report_dir / "dataset_stability.csv")
     summary = paired.groupby(["dataset", "labeling", "view", "feature"]).agg(
         selected_rounds=("round", "nunique"),
-        permutation_mean_importance=("permutation", "mean"),
-        mean_replacement_mean_importance=("mean_replacement", "mean"),
+        permutation_median_importance=("permutation", "median"),
+        mean_replacement_median_importance=("mean_replacement", "median"),
         permutation_median_rank=("permutation_rank", "median"),
         permutation_rank_q25=("permutation_rank", lambda x: x.quantile(.25)),
         permutation_rank_q75=("permutation_rank", lambda x: x.quantile(.75)),
         mean_replacement_median_rank=("mean_replacement_rank", "median"),
         mean_replacement_rank_q25=("mean_replacement_rank", lambda x: x.quantile(.25)),
         mean_replacement_rank_q75=("mean_replacement_rank", lambda x: x.quantile(.75)),
-        mean_rank_change=("rank_change", "mean"),
-        mean_absolute_rank_change=("absolute_rank_change", "mean"),
+        median_rank_change=("rank_change", "median"),
+        median_absolute_rank_change=("absolute_rank_change", "median"),
         permutation_top5_frequency=("permutation_top5", "mean"),
         mean_replacement_top5_frequency=("mean_replacement_top5", "mean"),
     ).reset_index()
@@ -89,9 +89,12 @@ def compare_results(importance_file, report_dir):
         "Higher Spearman/Kendall correlation and top-five Jaccard overlap indicate "
         "greater stability. Correlations are undefined for constant rankings. "
         "Top-five sets include ties. No arbitrary stable/unstable cutoff is imposed.\n\n"
-        "Mean stability across rounds (interpret per-dataset reports first):\n\n"
-        + stability.groupby("labeling")[["spearman", "kendall", "top5_jaccard",
-            "mean_absolute_rank_change"]].mean().to_string() + "\n"
+        "Importance and rank-change summaries use medians across rounds. "
+        "Selection and top-five frequencies remain proportions; tied ranks use "
+        "average ranks. Mean replacement remains the perturbation method.\n\n"
+        "Median stability across dataset medians (interpret per-dataset reports first):\n\n"
+        + stability.groupby(["dataset", "labeling"])[["spearman", "kendall", "top5_jaccard",
+            "median_absolute_rank_change"]].median().groupby("labeling").median().to_string() + "\n"
     )
     (report_dir / "report.md").write_text(text, encoding="utf-8")
     return summary, stability
