@@ -317,6 +317,60 @@ label-array mutation in the original `demo_MUSDP.py`, so its MUSDP values
 may differ from that original demo. Dependencies include statsmodels in
 addition to numpy, pandas, scipy, and scikit-learn.
 
+## AEEEM comparison baselines (Comparison Part)
+
+`aeeem/loader.py` reads the five AEEEM systems (EQ, JDT, LC, ML, PDE) straight
+from `data/AEEEM/*.arff`: 61 metrics, a 0/1 defect label and LOC
+(`ck_oo_numberOfLinesOfCode`). It defines the same five semantic views as
+`test/run_aeeem.py` (`ck_oo_`, `WCHU_`, `LDHH_`, `Cvs*`, `*BugsFoundUntil`) and
+checks that every metric falls in exactly one view.
+
+`aeeem/comparison/` holds the baselines, one shared evaluation and the runner:
+
+| Method | Definition on AEEEM |
+|---|---|
+| SC | Original spectral clustering on all 61 metrics, z-scored, k = 2, larger mean row sum = defective. No AutoSpearman, as in the original baseline. |
+| ManualDown | Rank by LOC descending; top floor(n/2) defective. |
+| ManualUp | Rank by LOC ascending (LOC + 1 when any LOC is 0); top floor(n/2) defective. |
+| Churn | Rank by `WCHU_numberOfLinesOfCode` descending, ties by larger LOC; top floor(n/2) defective. |
+| ChurnSet | Same, ranking by the sum of the 17 z-scored `WCHU_*` metrics. |
+
+Churn uses ManualDown's cut-off and tie order, so it differs from ManualDown
+only in the metric it ranks by. About half of the modules have zero churn,
+which is why the tie rule is fixed.
+
+`aeeem/comparison/evaluation.py` scores every method with the original
+`performanceMeasure` and `rankMeasure` code. G-mean and AUC use the binary
+label (as in the paper). Popt and Recall@20% use LOC as effort; ranking methods
+are inspected in score order, binary methods defective-first then by predicted
+density. `AUC_score` (rank AUC of the score) is also saved for the ranking
+methods. Effort is passed as a numpy array: `rank_measure`'s `0 in effort`
+tests a Series' index, not its values, so the original `demo_SC.py` adds 1 to
+LOC only when index 0 happens to be in the test sample.
+
+From the repository root:
+
+```
+python -m pytest aeeem/comparison/validation -q
+python -m aeeem.comparison.validation.check_against_paper --reps 100
+python -m aeeem.comparison.run_comparison --reps 100 --output result/aeeem_comparison
+python -m aeeem.comparison.summarize result/aeeem_comparison \
+    --musdp <MUSDP Part results_raw.csv> --output result/aeeem_with_musdp
+```
+
+- The tests check all four measures on hand-worked cases (worked out in the
+  comments) and against independent implementations of Popt and Recall@20% on
+  200 random cases, plus the loader's view split.
+- `check_against_paper` runs SC, ManualDown and ManualUp through the same
+  pipeline on the original 28 releases and compares median Pd and Pf with
+  Tables 5 and 6 of the online supplementary (`paper_pd_pf.csv`).
+- The runner uses seed = round (0..reps-1), the same as `test/run_aeeem.py`,
+  so every method, MUSDP included, is scored on the same evaluation sample in a
+  round. It writes `rounds.csv`, one table per measure (per-system medians and
+  a median row), `median_iqr.csv`, `mean_ranks.csv`, `paired_tests.csv`
+  (paired Wilcoxon signed-rank and Cliff's delta against ManualDown, and
+  against `MUSDP_v1_full5` when MUSDP rounds are merged) and `boxplots.png`.
+
 # NOTE 
 The software is free for academic use only, and shall not be used, rewritten, or adapted as the basis of a commercial product without first obtaining permission from the authors. 
 The authors make no representations about the suitability of this software for any purpose. It is provided "as is" without express or implied warranty.
