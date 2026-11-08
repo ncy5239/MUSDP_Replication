@@ -334,6 +334,7 @@ checks that every metric falls in exactly one view.
 | ManualUp | Rank by LOC ascending (LOC + 1 when any LOC is 0); top floor(n/2) defective. |
 | Churn | Rank by `WCHU_numberOfLinesOfCode` descending, ties by larger LOC; top floor(n/2) defective. |
 | ChurnSet | Same, ranking by the sum of the 17 z-scored `WCHU_*` metrics. |
+| CLA, CLAMI, TCL, TCLP, KMedoids | The implementations in `algorithms/` on all 61 metrics, with the settings of `test/demo_all_methods.py`. KMedoids is inspected defective first, then by smaller LOC. |
 
 Churn uses ManualDown's cut-off and tie order, so it differs from ManualDown
 only in the metric it ranks by. About half of the modules have zero churn,
@@ -353,7 +354,7 @@ From the repository root:
 ```
 python -m pytest aeeem/comparison/validation -q
 python -m aeeem.comparison.validation.check_against_paper --reps 100
-python -m aeeem.comparison.run_comparison --reps 100 --output result/aeeem_comparison
+python -m aeeem.comparison.run_comparison --reps 100 --procs 8 --output result/aeeem_comparison
 python test/run_aeeem.py --reps 100 --output result/aeeem_musdp
 python -m aeeem.comparison.summarize result/aeeem_comparison \
     --musdp result/aeeem_musdp/results_raw.csv --output result/aeeem_with_musdp
@@ -370,10 +371,17 @@ python -m aeeem.comparison.summarize result/aeeem_comparison \
   `--systems` and `--procs` limit a run, e.g. `--configs full5 concat`.
 - The runner uses seed = round (0..reps-1), the same as `test/run_aeeem.py`,
   so every method, MUSDP included, is scored on the same evaluation sample in a
-  round. It writes `rounds.csv`, one table per measure (per-system medians and
+  round. `--procs` runs rounds in parallel (one BLAS thread per worker); TCLP
+  dominates the run time. It writes `rounds.csv`, one table per measure (per-system medians and
   a median row), `median_iqr.csv`, `mean_ranks.csv`, `paired_tests.csv`
   (paired Wilcoxon signed-rank and Cliff's delta against ManualDown, and
-  against `MUSDP_v1_full5` when MUSDP rounds are merged) and `boxplots.png`.
+  against `MUSDP_v1_full5` when MUSDP rounds are merged), `boxplots.png` and
+  `raw_results.csv`.
+- `raw_results.csv` (a copy is in `reports/m3/aeeem_raw_results.csv`) has one
+  row per system, method and round: `system, method, round, seed, n_test,
+  n_defective, G_mean, AUC, Popt, Recall20, Pd, Pf, AUC_score`. MUSDP rows are
+  named `MUSDP_v1_<config>` / `MUSDP_v2_<config>`; the MUSDP runner does not
+  record Pd, Pf or AUC_score, so those cells are empty for them.
 
 # NOTE 
 The software is free for academic use only, and shall not be used, rewritten, or adapted as the basis of a commercial product without first obtaining permission from the authors. 

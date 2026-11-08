@@ -99,6 +99,18 @@ def test_churn_ranks_by_churn_then_larger_loc():
     assert list(pred.label) == [0, 1, 0, 1, 0]  # floor(5/2) = 2 defective
 
 
+def test_kmedoids_is_inspected_defective_first_then_by_smaller_loc():
+    system = load_system('EQ')
+    features = system.features.iloc[:80]
+    loc = system.loc[:80]
+    pred = baselines.kmedoids(features, loc, seed=0)
+    order = np.argsort(-pred.score)
+    labels, sizes = pred.label[order], loc[order]
+    assert (np.diff(labels) <= 0).all()  # all predicted defective first
+    for group in (1, 0):
+        assert (np.diff(sizes[labels == group]) >= 0).all()
+
+
 @pytest.mark.parametrize('name', SYSTEMS)
 def test_loader_shapes_and_views(name):
     system = load_system(name)

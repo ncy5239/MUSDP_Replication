@@ -13,8 +13,11 @@ from dataclasses import dataclass
 import numpy as np
 from sklearn import preprocessing
 
+from algorithms.CLA import CLA, CLAMI
+from algorithms.KMedoids import KMedoids, rank_modules
 from algorithms.ManualDownUp import manualDown, manualUp
 from algorithms.SC import SC
+from algorithms.TCL import TCL, TCLP
 
 
 @dataclass(frozen=True)
@@ -75,3 +78,41 @@ def churn_set(churn_view, loc):
     """
     z = preprocessing.scale(np.asarray(churn_view, dtype=float))
     return ranked_top_half(z.sum(axis=1), loc)
+
+
+# Baselines implemented for the original study (algorithms/), applied to AEEEM
+# with the same settings as test/demo_all_methods.py.
+
+def cla(features, percentile=50):
+    """Nam and Kim (2015) CLA on all 61 metrics."""
+    return Prediction(label=np.asarray(CLA(features, percentile=percentile), dtype=int))
+
+
+def clami(features, seed, percentile=50):
+    """Nam and Kim (2015) CLAMI: CLA pseudo labels, metric/instance selection, classifier."""
+    return Prediction(label=np.asarray(CLAMI(features, percentile=percentile, random_state=seed), dtype=int))
+
+
+def tcl(features):
+    """Kumar et al. (2022) threshold clustering on the raw (nonnegative) metrics."""
+    return Prediction(label=np.asarray(TCL(features), dtype=int))
+
+
+def tclp(features, seed, n_estimators=500, cv_folds=10, tune_mtry=True):
+    """Kumar et al. (2022) TCLP: TCL labels, selection, ROSE and random forest."""
+    return Prediction(label=np.asarray(TCLP(features, random_state=seed, n_estimators=n_estimators,
+                                            cv_folds=cv_folds, tune_mtry=tune_mtry), dtype=int))
+
+
+def kmedoids(features, loc, seed, standardize=True, max_iter=100):
+    """Yang et al. (2024) PAM k-medoids with ASFM labelling.
+
+    Inspected defective first, then ascending LOC within both groups
+    (rank_modules), the convention test/demo_all_methods.py uses for it.
+    """
+    label = np.asarray(KMedoids(features, random_state=seed, standardize=standardize,
+                                max_iter=max_iter), dtype=int)
+    order = rank_modules(label, np.asarray(loc, dtype=float))
+    score = np.empty(len(label))
+    score[order] = np.arange(len(label), 0, -1)
+    return Prediction(label=label, score=score)

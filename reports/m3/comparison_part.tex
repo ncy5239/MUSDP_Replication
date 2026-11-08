@@ -22,6 +22,8 @@ the weighted churn of LOC, with ManualDown's cut-off and ties broken by larger
 LOC, so it differs from ManualDown only in the ranking metric. A fixed tie
 rule is needed because 27\% (PDE) to 54\% (LC) of classes have zero churn.
 ChurnSet applies the same rule to the sum of the 17 z-scored WCHU metrics.
+CLA, CLAMI, TCL, TCLP and KMedoids use the repository's implementations for
+the original study on all 61 metrics, with the same settings as there.
 MUSDP results come from Member 2's runner, with its MUSDP logic unchanged, in three
 configurations: five views (MUSDP-5V), all metrics in one view
 (MUSDP-concat) and the churn view alone (MUSDP-churn).
@@ -63,14 +65,19 @@ index 0 is in the test sample. Our pipeline passes arrays.
 \hline
 Method & G-mean & AUC & Popt & Recall@20\% \\
 \hline
-MUSDP-5V     & \textbf{0.711} (2.6) & \textbf{0.716} (2.6) & 0.600 (3.2) & 0.386 (2.8) \\
-MUSDP-concat & 0.695 (2.8) & 0.697 (3.0) & 0.595 (3.0) & 0.394 (2.8) \\
-MUSDP-churn  & 0.655 (5.6) & 0.656 (5.6) & 0.593 (3.8) & \textbf{0.409} (2.8) \\
-SC           & 0.695 (2.4) & 0.705 (2.4) & 0.573 (4.4) & 0.358 (3.6) \\
-ManualDown   & 0.657 (5.2) & 0.667 (5.2) & 0.278 (8.0) & 0.059 (8.0) \\
-ManualUp     & 0.312 (8.0) & 0.334 (8.0) & \textbf{0.722} (1.0) & 0.385 (3.0) \\
-Churn        & 0.662 (3.6) & 0.677 (3.4) & 0.425 (6.8) & 0.162 (6.6) \\
-ChurnSet     & 0.642 (5.8) & 0.655 (5.8) & 0.421 (5.8) & 0.151 (6.4) \\
+MUSDP-5V     & \textbf{0.711} (3.2) & \textbf{0.716} (3.2) & 0.600 (4.4) & 0.386 (3.4) \\
+MUSDP-concat & 0.695 (4.2) & 0.697 (4.8) & 0.595 (4.2) & 0.394 (3.5) \\
+MUSDP-churn  & 0.655 (7.8) & 0.656 (8.2) & 0.593 (5.2) & \textbf{0.409} (3.8) \\
+SC           & 0.695 (2.6) & 0.705 (2.6) & 0.573 (6.6) & 0.358 (4.0) \\
+CLA          & 0.696 (4.0) & 0.700 (4.8) & 0.553 (5.4) & 0.357 (6.7) \\
+CLAMI        & 0.684 (5.2) & 0.697 (5.2) & 0.565 (4.6) & 0.341 (4.8) \\
+TCL          & 0.483 (12.0) & 0.595 (11.2) & 0.488 (10.4) & 0.209 (10.4) \\
+TCLP         & 0.582 (10.0) & 0.634 (8.0) & 0.522 (9.2) & 0.286 (8.8) \\
+KMedoids     & 0.654 (8.4) & 0.669 (8.2) & 0.553 (5.0) & 0.308 (6.6) \\
+ManualDown   & 0.657 (7.0) & 0.667 (7.4) & 0.278 (13.0) & 0.059 (13.0) \\
+ManualUp     & 0.312 (13.0) & 0.334 (13.0) & \textbf{0.722} (1.2) & 0.385 (3.6) \\
+Churn        & 0.662 (5.6) & 0.677 (5.6) & 0.425 (11.4) & 0.162 (11.4) \\
+ChurnSet     & 0.642 (8.0) & 0.655 (8.8) & 0.421 (10.4) & 0.151 (11.0) \\
 \hline
 \end{tabular}
 \end{table}
@@ -102,7 +109,7 @@ Popt & MUSDP-5V     & 0.581 & 0.621 & 0.736 & 0.511 & 0.600 \\
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{fig_aeeem_comparison.png}
-\caption{Distribution over 100 bootstrap rounds for each AEEEM system.}
+\caption{Distribution over 100 bootstrap rounds for each AEEEM system (selected methods).}
 \label{fig:aeeem}
 \end{figure*}
 
@@ -110,7 +117,10 @@ Tables~\ref{tab:aeeem-overall} and~\ref{tab:aeeem-systems} and
 Fig.~\ref{fig:aeeem} give the results. MUSDP-5V has the best overall mean rank
 and the highest median G-mean (0.711) and AUC (0.716), but the lead is small
 and not uniform: SC is 0.016 G-mean behind overall, beats MUSDP-5V on JDT and
-ML ($\delta=0.28$ and $0.42$, $p<0.05$) and does not differ on LC.
+ML ($\delta=0.28$ and $0.42$, $p<0.05$) and does not differ on LC. CLA (0.696)
+and CLAMI (0.684) are as close, and CLAMI beats MUSDP-5V on JDT (0.754 vs
+0.744); TCL (0.483) and TCLP (0.582) have the lowest G-mean of the clustering
+methods.
 
 \emph{Multiview structure.} MUSDP-concat, which keeps the same metrics in one
 view, loses to MUSDP-5V on JDT, LC and PDE (G-mean 0.018 to 0.037 lower,
@@ -122,8 +132,8 @@ on ML. The five-view structure helps on three of the five systems.
 $0.90$) and MUSDP-5V on EQ (0.731 vs 0.711) and ML (0.614 vs 0.600); its rank
 AUC is 0.68 to 0.81. Summing all 17 churn metrics does not improve on it.
 
-\emph{Measures disagree.} ManualUp has the best Popt on every system (median
-0.722) and the worst G-mean (0.312). Churn and ManualDown inspect large classes
+\emph{Measures disagree.} ManualUp has the best Popt on four of the five
+systems (median 0.722; KMedoids is best on LC) and the worst G-mean (0.312). Churn and ManualDown inspect large classes
 first and score low on Recall@20\% (0.162 and 0.059), while the same churn
 metrics clustered by MUSDP reach Popt 0.593. ML has the lowest best G-mean
 (0.626, by ManualDown), and no method leads on all five systems. MUSDP's two
@@ -154,8 +164,9 @@ a churn-density baseline, results by size stratum, and a sensitivity check of
 the 50\% cut-off.
 
 \textbf{Contributions (Emmanuel Omole).} AEEEM loader and view check; SC,
-ManualDown, ManualUp, Churn and ChurnSet on AEEEM; one evaluation for all
-methods; runner, summary tables, paired tests and figure; 212 validation tests
+ManualDown, ManualUp, Churn, ChurnSet, CLA, CLAMI, TCL, TCLP and KMedoids on
+AEEEM; one evaluation for all
+methods; runner, summary tables, paired tests and figure; 213 validation tests
 and the end-to-end check against the paper (168 of 168 values reproduced); the 100-round runs; the
 \texttt{rank\_measure} issue; \texttt{test/run\_aeeem.py} made to read the
 ARFF files and run on macOS, with identical results.
