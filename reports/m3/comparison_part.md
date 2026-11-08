@@ -29,7 +29,7 @@ effort for Popt and Recall@20%.
 - ChurnSet: the same rule, ranking by the sum of the 17 z-scored WCHU metrics.
 
 MUSDP results in this section come from Member 2's runner
-(`test/run_aeeem.py`), unchanged, in three configurations: five views
+(`test/run_aeeem.py`), with its MUSDP logic unchanged, in three configurations: five views
 (MUSDP-5V), all metrics concatenated into one view (MUSDP-concat) and the
 churn view alone (MUSDP-churn).
 
@@ -160,6 +160,7 @@ reliable figure; the MUSDP results are preliminary runs of Member 2's code.
 - Validation: 212 tests and the end-to-end check against the paper (168 of
   168 published values reproduced).
 - Ran the 100-round experiments for all baselines and the three MUSDP
-  comparison configurations. Found the `rank_measure` Series issue, and that
-  `test/run_aeeem.py` reads CSV files the repository does not contain and
-  needs the fork start method on macOS.
+  comparison configurations. Found the `rank_measure` Series issue. Made
+  `test/run_aeeem.py` read the ARFF files through the loader and run on
+  macOS (it read CSV files the repository did not contain and needed the
+  fork start method), with identical results.

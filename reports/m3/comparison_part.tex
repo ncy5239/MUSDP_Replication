@@ -22,7 +22,7 @@ the weighted churn of LOC, with ManualDown's cut-off and ties broken by larger
 LOC, so it differs from ManualDown only in the ranking metric. A fixed tie
 rule is needed because 27\% (PDE) to 54\% (LC) of classes have zero churn.
 ChurnSet applies the same rule to the sum of the 17 z-scored WCHU metrics.
-MUSDP results come from Member 2's runner, unchanged, in three
+MUSDP results come from Member 2's runner, with its MUSDP logic unchanged, in three
 configurations: five views (MUSDP-5V), all metrics in one view
 (MUSDP-concat) and the churn view alone (MUSDP-churn).
 
@@ -157,5 +157,5 @@ the 50\% cut-off.
 ManualDown, ManualUp, Churn and ChurnSet on AEEEM; one evaluation for all
 methods; runner, summary tables, paired tests and figure; 212 validation tests
 and the end-to-end check against the paper (168 of 168 values reproduced); the 100-round runs; the
-\texttt{rank\_measure} issue and two portability issues in
-\texttt{test/run\_aeeem.py} (missing CSV inputs, fork start method on macOS).
+\texttt{rank\_measure} issue; \texttt{test/run\_aeeem.py} made to read the
+ARFF files and run on macOS, with identical results.

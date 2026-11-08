@@ -1,17 +1,34 @@
-import sys, warnings, json
+"""Run MUSDP on the five AEEEM systems for every view configuration.
+
+From the repository root:
+
+    python test/run_aeeem.py --reps 100 --output result/aeeem_musdp
+
+Reads data/AEEEM/*.arff through aeeem/loader.py. Works with both the fork
+(Linux) and spawn (macOS, Windows) start methods: the loaded systems are
+passed to each worker instead of being inherited from the parent.
+"""
+import argparse
+import json
+import sys
+import warnings
 from multiprocessing import Pool
 from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
+from aeeem.loader import DATA_DIR, SYSTEMS, VIEWS, load_system
 from algorithms.coreg import MultiviewCoRegSpectralClustering
 from algorithms.coreg.labelingCluster import labelCluster, labelCluster_v2
 from utilities import performanceMeasure, rankMeasure
 from utilities.AutoSpearman import AutoSpearman
 from utilities.bootstrapCV import outofsample_bootstrap
 
-REPO, AEEEM, OUT, REPS = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), int(sys.argv[4])
-sys.path.insert(0, str(REPO))
 
 # The one-view subclass
 class CoRegAnyViews(MultiviewCoRegSpectralClustering):
@@ -23,45 +40,45 @@ class CoRegAnyViews(MultiviewCoRegSpectralClustering):
         self._n_views = 1
         return out[:1]
 
-#Views and Systems
-SYSTEMS = ["EQ", "JDT", "LC", "ML", "PDE"]
-VIEWS = {  # Column-name prefix -> View
-    "source": lambda c: c.startswith("ck_oo_"),
-    "churn": lambda c: c.startswith("WCHU_"),
-    "entropy_src": lambda c: c.startswith("LDHH_"),
-    "entropy_chg": lambda c: c.startswith("Cvs"),
-    "prev_defects": lambda c: "BugsFoundUntil" in c,
-}
-LOC_COL = "ck_oo_numberOfLinesOfCode"
+
+# Views (column-name prefix -> view) and systems come from aeeem/loader.py
 CONFIGS = ["full5"] + ["only_" + v for v in VIEWS] + ["concat"] + ["drop_" + v for v in VIEWS]
 
+
 # Load and split each system
-def load(system):
-    df = pd.read_csv(AEEEM / f"{system}.csv")
-    df.columns = [c.rstrip(":") for c in df.columns]
-    y = (df["class"].astype(str).str.lower() == "buggy").astype(int) # Turns buggy/clean into 1/0
-    feats = df.drop(columns="class")
-    loc = feats[LOC_COL].to_numpy(dtype=float)
+def load(system, data_dir=DATA_DIR):
+    s = load_system(system, data_dir)  # 61 metrics, every metric in exactly one view
+    y = pd.Series(s.label)  # buggy/clean as 1/0
     views, kept = {}, {}
-    for name, f in VIEWS.items(): # Drops columns, then runs the repo’s AutoSpearman, removes correlated metrics
-        cols = [c for c in feats.columns if f(c)]
-        v = feats[cols]
+    for name in VIEWS:  # Drops constant columns, then the repo's AutoSpearman removes correlated metrics
+        v = s.view(name)
         v = v.loc[:, v.std() > 0]
         views[name] = AutoSpearman(v)
         kept[name] = views[name].shape[1]
-    assert sum(len(feats.columns[[VIEWS[n](c) for c in feats.columns]]) for n in VIEWS) == 61
-    return views, y, loc, kept
+    return views, y, s.loc, kept
+
 
 # Build the configurations
 def config_views(cfg, views):
-    if cfg == "full5": # All five views
+    if cfg == "full5":  # All five views
         return [views[v] for v in VIEWS]
-    if cfg.startswith("only_"): # One view alone
+    if cfg.startswith("only_"):  # One view alone
         return [views[cfg[5:]]]
-    if cfg.startswith("drop_"): # The other four views
+    if cfg.startswith("drop_"):  # The other four views
         return [views[v] for v in VIEWS if v != cfg[5:]]
-    if cfg == "concat":  # All five views’ kept metrics concatennated into one table.
+    if cfg == "concat":  # All five views' kept metrics concatenated into one table
         return [pd.concat([views[v] for v in VIEWS], axis=1)]
+    raise ValueError(f"Unknown configuration {cfg}")
+
+
+# Each worker receives the loaded systems once
+DATA = {}
+
+
+def init_worker(data):
+    warnings.filterwarnings("ignore")
+    DATA.update(data)
+
 
 # One experimental run
 def one_run(args):
@@ -73,7 +90,7 @@ def one_run(args):
         return dict(system=system, config=cfg, rep=rep, skipped=1)
     test_loc = loc[test_idx]
     test_data = [preprocessing.scale(x) for x in test_data]
-    m = CoRegAnyViews(n_clusters=2, v_lambda=1, max_iter=10, random_state=rep) # The one-view subclass
+    m = CoRegAnyViews(n_clusters=2, v_lambda=1, max_iter=10, random_state=rep)  # The one-view subclass
     clus = m.fit_predict(test_data)
     votes = [labelCluster(x, clus.copy()) for x in test_data]
     p1 = (np.mean(votes, axis=0) >= 0.5).astype(int)
@@ -85,15 +102,29 @@ def one_run(args):
         row.update({f"{tag}_G": G, f"{tag}_AUC": AUC, f"{tag}_Popt": Popt, f"{tag}_R20": rec20})
     return row
 
-# It loads all five systems, builds every system, configuration, repeat job
-DATA = {}
-if __name__ == "__main__":
+
+# Loads all five systems, builds every system, configuration, repeat job
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--output", type=Path, default=REPO / "result" / "aeeem_musdp")
+    parser.add_argument("--reps", type=int, default=100)
+    parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
+    parser.add_argument("--systems", nargs="+", default=list(SYSTEMS))
+    parser.add_argument("--configs", nargs="+", default=CONFIGS, choices=CONFIGS)
+    parser.add_argument("--procs", type=int, default=2)
+    args = parser.parse_args()
+
     warnings.filterwarnings("ignore")
-    OUT.mkdir(parents=True, exist_ok=True)
-    DATA = {s: load(s) for s in SYSTEMS}
-    json.dump({s: DATA[s][3] for s in SYSTEMS}, open(OUT / "metrics_kept.json", "w"), indent=1)
-    jobs = [(s, c, r) for s in SYSTEMS for c in CONFIGS for r in range(REPS)]
-    with Pool(2) as pool:
+    args.output.mkdir(parents=True, exist_ok=True)
+    data = {s: load(s, args.data_dir) for s in args.systems}
+    with open(args.output / "metrics_kept.json", "w") as f:
+        json.dump({s: data[s][3] for s in args.systems}, f, indent=1)
+    jobs = [(s, c, r) for s in args.systems for c in args.configs for r in range(args.reps)]
+    with Pool(args.procs, initializer=init_worker, initargs=(data,)) as pool:
         rows = pool.map(one_run, jobs, chunksize=8)
-    pd.DataFrame(rows).to_csv(OUT / "results_raw.csv", index=False)
+    pd.DataFrame(rows).to_csv(args.output / "results_raw.csv", index=False)
     print("done", len(rows))
+
+
+if __name__ == "__main__":
+    main()
