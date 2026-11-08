@@ -1,4 +1,8 @@
-"""Summary tables, paired tests and a figure from per-round AEEEM results.
+"""Summary tables, paired tests, a figure and raw_results.csv from per-round AEEEM results.
+
+raw_results.csv has one row per system, method and bootstrap round, with
+every measure. Pd, Pf and AUC_score are empty for merged MUSDP rows, which
+the MUSDP runner does not record; n_defective comes from the shared sample.
 
     python -m aeeem.comparison.summarize result/aeeem_comparison
     python -m aeeem.comparison.summarize result/aeeem_comparison \
@@ -23,6 +27,8 @@ from scipy.stats import wilcoxon
 from aeeem.comparison.evaluation import MEASURES
 
 MUSDP_COLUMNS = dict(G='G_mean', AUC='AUC', Popt='Popt', R20='Recall20')
+RAW_COLUMNS = ['system', 'method', 'round', 'seed', 'n_test', 'n_defective', 'G_mean', 'AUC',
+               'Popt', 'Recall20', 'Pd', 'Pf', 'AUC_score']
 
 
 def load_musdp(path):
@@ -34,7 +40,8 @@ def load_musdp(path):
         part['method'] = f'MUSDP_{version}_' + raw['config']
         for short, measure in MUSDP_COLUMNS.items():
             part[measure] = raw[f'{tag}_{short}']
-        frames.append(part.rename(columns={'rep': 'round'}).drop(columns='config'))
+        part = part.rename(columns={'rep': 'round'}).drop(columns='config')
+        frames.append(part.assign(seed=part['round']))  # the MUSDP runner uses seed = round
     return pd.concat(frames, ignore_index=True)
 
 
@@ -71,13 +78,18 @@ def paired_tests(rounds, reference):
 def summarize(rounds, output, references=('ManualDown',)):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
+    method_order = list(dict.fromkeys(rounds['method']))
+    raw = rounds.reindex(columns=RAW_COLUMNS).assign(
+        method=lambda d: pd.Categorical(d['method'], method_order, ordered=True))
+    # Every method shares the round's evaluation sample, so its defect count is known for MUSDP rows too
+    raw['n_defective'] = raw.groupby(['system', 'round'])['n_defective'].transform('max')
+    raw.sort_values(['system', 'method', 'round']).to_csv(output / 'raw_results.csv', index=False)
     grouped = rounds.groupby(['system', 'method'])[list(MEASURES)]
     q1, q3 = grouped.quantile(0.25), grouped.quantile(0.75)
     stats = grouped.median().add_suffix('_median').join((q3 - q1).add_suffix('_iqr'))
     stats = stats.join(rounds.groupby(['system', 'method']).size().rename('rounds'))
     stats.to_csv(output / 'median_iqr.csv')
 
-    method_order = list(dict.fromkeys(rounds['method']))
     rank_rows = []
     for measure in MEASURES:
         table = grouped.median()[measure].unstack('method')[method_order]
