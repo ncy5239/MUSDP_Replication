@@ -354,8 +354,9 @@ From the repository root:
 python -m pytest aeeem/comparison/validation -q
 python -m aeeem.comparison.validation.check_against_paper --reps 100
 python -m aeeem.comparison.run_comparison --reps 100 --output result/aeeem_comparison
+python test/run_aeeem.py --reps 100 --output result/aeeem_musdp
 python -m aeeem.comparison.summarize result/aeeem_comparison \
-    --musdp <MUSDP Part results_raw.csv> --output result/aeeem_with_musdp
+    --musdp result/aeeem_musdp/results_raw.csv --output result/aeeem_with_musdp
 ```
 
 - The tests check all four measures on hand-worked cases (worked out in the
@@ -364,6 +365,9 @@ python -m aeeem.comparison.summarize result/aeeem_comparison \
 - `check_against_paper` runs SC, ManualDown and ManualUp through the same
   pipeline on the original 28 releases and compares median Pd and Pf with
   Tables 5 and 6 of the online supplementary (`paper_pd_pf.csv`).
+- `test/run_aeeem.py` (MUSDP Part) reads the ARFF files through
+  `aeeem/loader.py` and runs on macOS, Linux and Windows. `--configs`,
+  `--systems` and `--procs` limit a run, e.g. `--configs full5 concat`.
 - The runner uses seed = round (0..reps-1), the same as `test/run_aeeem.py`,
   so every method, MUSDP included, is scored on the same evaluation sample in a
   round. It writes `rounds.csv`, one table per measure (per-system medians and
